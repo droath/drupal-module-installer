@@ -1,6 +1,6 @@
 <?php
 
-namespace Droath\DrupalModuleInstaller\Installer;
+namespace Droath\DrupalModuleInstaller\Binary;
 
 use Droath\DrupalModuleInstaller\Binary;
 use Droath\DrupalModuleInstaller\BinaryInterface;
