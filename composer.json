@@ -1,0 +1,27 @@
+{
+    "name": "droath/drupal-module-installer",
+    "type": "composer-plugin",
+    "description": "Install or uninstall Drupal modules based on composer operations.",
+    "homepage": "https://github.com/droath/drupal-module-installer",
+    "keywords": ["drupal", "module", "installer", "console", "drush"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Travis Tomka",
+            "email": "underoathosx@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.4",
+        "composer-plugin-api": "^1.0.0",
+        "adambrett/shell-wrapper": "^0.7.0"
+    },
+    "extra": {
+        "class": "Droath\\DrupalModuleInstaller\\ComposerPlugin"
+    },
+    "autoload": {
+        "psr-4": {
+            "Droath\\DrupalModuleInstaller\\": "src/"
+        }
+    }
+}
