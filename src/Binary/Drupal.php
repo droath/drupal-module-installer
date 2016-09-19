@@ -20,7 +20,7 @@ class Drupal extends Binary implements BinaryInterface {
   /**
    * {@inheritdoc}
    */
-  public function unisntall(array $modules) {
+  public function uninstall(array $modules) {
     // add code
   }
 
