@@ -170,13 +170,23 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface {
     if (!isset($operation)) {
       return;
     }
-    $modules = array_reverse($modules);
+    static $count = 0;
+    static $skip_prompt = FALSE;
 
-    $is_confirmed = $this->io->askConfirmation(
-      sprintf('Do you want to %s %s? [yes] ', $operation, implode(', ', $modules))
-    );
+    if ($count == 0) {
+      $skip_prompt = $this->io->askConfirmation(
+        sprintf('Skip confirmation prompt and %s all modules? [yes] ', $operation)
+      );
+    }
+    $is_confirmed = FALSE;
 
-    if ($is_confirmed) {
+    if (!$skip_prompt) {
+      $is_confirmed = $this->io->askConfirmation(
+        sprintf('Do you want to %s %s? [yes] ', $operation, implode(', ', $modules))
+      );
+    }
+
+    if ($is_confirmed || $skip_prompt) {
       $executable = $this->binaryExecutable();
 
       switch ($operation) {
@@ -191,6 +201,8 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface {
 
       $executable->execute();
     }
+
+    ++$count;
   }
 
   /**
