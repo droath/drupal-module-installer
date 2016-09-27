@@ -7,9 +7,11 @@ use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
 use Composer\Installer\PackageEvent;
 use Composer\Installer\PackageEvents;
+use Composer\Package\PackageInterface;
+use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
-use Composer\Plugin\PluginInterface;
+use Symfony\Component\Finder\Finder;
 
 /**
  * Class \Droath\DrupalModuleInstaller\ComposerPlugin.
@@ -154,58 +156,124 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface {
     if ($package->getType() !== 'drupal-module') {
       return;
     }
-    $package_name = $package->getName();
-
-    if (!is_string($package_name)) {
-      return;
-    }
-
-    $module = substr($package_name, strpos($package_name, '/') + 1);
+    $modules = $this->scanPackageForModules($package);
     $operation = $event->getOperation()->getJobType();
 
-    $this->runBinaryByOperation($operation, [$module]);
+    $this->runBinaryByOperation($operation, $modules);
+  }
+
+  /**
+   * Scan an installed Drupal package for modules.
+   *
+   * @param Composer\Package\PackageInterface $package
+   *   A composer package.
+   *
+   * @return array
+   *   An array of modules found within the installed package.
+   */
+  protected function scanPackageForModules(PackageInterface $package) {
+    $install_path = $this->composer
+      ->getInstallationManager()
+      ->getInstallPath($package);
+
+    return $this->findDrupalModules($install_path);
+  }
+
+  /**
+   * Find Drupal modules within a directory path.
+   *
+   * @param string $directory
+   *   A path to a Drupal module.
+   * @param bool $include_test
+   *   A flag to allow test modules.
+   *
+   * @return array
+   *   An array of Drupal modules within a directory.
+   */
+  protected function findDrupalModules($directory, $include_test = FALSE) {
+    if (!file_exists($directory) || !is_dir($directory)) {
+      return [];
+    }
+
+    $finder = Finder::create()
+      ->files()
+      ->name('*.module')
+      ->in($directory);
+
+    $modules = [];
+
+    foreach ($finder as $file_info) {
+      if (!$include_test && strpos($file_info->getPathname(), '/tests/') !== FALSE) {
+        continue;
+      }
+
+      $modules[] = $file_info->getBasename('.module');
+    }
+
+    return $modules;
   }
 
   /**
    * Run binary by operation.
    *
    * @param string $operation
-   *   A binary operation to perform.
+   *   A composer operation being perform.
    * @param array $modules
    *   An array of Drupal modules.
    */
   protected function runBinaryByOperation($operation, array $modules = []) {
+    $modules = $operation === 'install' ? array_reverse($modules) : $modules;
+
+    $all_module_confirmed = $this->io->askConfirmation(
+      sprintf('Do you want to %s %s? [yes] ', $operation, implode(', ', $modules))
+    );
+
+    if (!$all_module_confirmed) {
+      if (count($modules) === 1) {
+        return;
+      }
+
+      foreach ($modules as $module) {
+        $module_confirmed = $this->io->askConfirmation(
+          sprintf('Do you want to %s %s? [no] ', $operation, $module), FALSE
+        );
+
+        if ($module_confirmed) {
+          $this->executeBinaryModuleOperation($operation, [$module]);
+        }
+      }
+    }
+    else {
+      $this->executeBinaryModuleOperation($operation, $modules);
+    }
+  }
+
+  /**
+   * Execute the binary module operation.
+   *
+   * @param string $operation
+   *   A composer operation being perform.
+   * @param array $modules
+   *   An array of Drupal modules.
+   */
+  protected function executeBinaryModuleOperation($operation, array $modules = []) {
     if (!isset($operation)) {
       return;
     }
-    static $count = 0;
-    static $skip_prompt = FALSE;
+    $executable = $this->binaryExecutable();
 
-    if ($count == 0) {
-      $skip_prompt = $this->io->askConfirmation(
-        sprintf('Skip confirmation prompt and %s all modules? [yes] ', $operation)
-      );
-    }
-    $is_confirmed = FALSE;
+    switch ($operation) {
+      case 'install':
+        $executable->install($modules);
+        break;
 
-    if (!$skip_prompt) {
-      $is_confirmed = $this->io->askConfirmation(
-        sprintf('Do you want to %s %s? [yes] ', $operation, implode(', ', $modules))
-      );
+      case 'uninstall':
+        $executable->uninstall($modules);
+        break;
     }
 
-    if ($is_confirmed || $skip_prompt) {
-      $executable = $this->binaryExecutable();
-
-      switch ($operation) {
-        case 'install':
-          $executable->install($modules);
-          break;
-
-        case 'uninstall':
-          $executable->uninstall($modules);
-          break;
-      }
+    $executable->execute();
+  }
 
   /**
    * Determine if the binary has a connection to the database.
