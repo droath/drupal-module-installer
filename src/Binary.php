@@ -59,12 +59,14 @@ abstract class Binary {
    *
    * @throws \Droath\DrupalModuleInstaller\Exception\BinaryExecuteException.
    *
-   * @return mixed
-   *   Output from the external binary command.
+   * @return array
+   *   An array of the command output.
    */
   public function execute() {
+    $runner = new Exec();
+
     try {
-      $output = (new Exec())->run($this->command);
+      $runner->run($this->command);
     }
     catch (Exception $e) {
       throw new BinaryExecuteException(
@@ -73,7 +75,7 @@ abstract class Binary {
     }
     $this->reset();
 
-    return $output;
+    return array_filter($runner->getOutput());
   }
 
   /**
