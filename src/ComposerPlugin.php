@@ -73,6 +73,10 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface {
    *   A composer script event.
    */
   public function onPostCMDUpdate(Event $event) {
+    if (!$this->binaryHasConnection()) {
+      return;
+    }
+
     if ($this->isPackageUpdated()) {
       $this->binaryExecutable()
         ->updateDatabase()
@@ -141,6 +145,10 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface {
    *   A compose package event.
    */
   protected function runPackageOperation(PackageEvent $event) {
+    if (!$this->binaryHasConnection()) {
+      return;
+    }
+
     $package = $event->getOperation()->getPackage();
 
     if ($package->getType() !== 'drupal-module') {
@@ -199,10 +207,23 @@ class ComposerPlugin implements PluginInterface, EventSubscriberInterface {
           break;
       }
 
-      $executable->execute();
+  /**
+   * Determine if the binary has a connection to the database.
+   *
+   * @return bool
+   *   TRUE if the binary is able to make a connection; otherwise FALSE.
+   */
+  protected function binaryHasConnection() {
+    $connection = $this
+      ->binaryExecutable()
+      ->hasDatabaseConnection()
+      ->execute();
+
+    if (empty($connection)) {
+      return FALSE;
     }
 
-    ++$count;
+    return stripos($connection[0], 'successful') !== FALSE ? TRUE : FALSE;
   }
 
   /**

@@ -59,6 +59,17 @@ class Drush extends Binary implements BinaryInterface {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function hasDatabaseConnection() {
+    $this->command
+      ->addSubCommand('status')
+      ->addSubCommand('bootstrap');
+
+    return $this;
+  }
+
+  /**
    * Add modules as parameters to the binary command.
    *
    * @param array $modules
